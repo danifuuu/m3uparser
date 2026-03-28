@@ -14,6 +14,7 @@ services:
     environment:
       - PUID=1000 # Defaults 1000 if blank.
       - PGID=1000 # Defaults 1000 if blank.
+      - RUN_ONCE=false # Set to true to run once and exit (for Kubernetes jobs). Default is false (continuous mode).
       - M3U_URL= # "https://m3u_URL1.com, https://m3u_URL2.com, etc..."
       - HOURS=12 # update interval, setting this optional, default 12hrs.
       - SCRUB_HEADER= # Optional, add more/different scrub values, does not override the defaults
@@ -42,6 +43,7 @@ services:
 | M3U_URL       | any url(s), in quotes, and seperated with a comma , | Include all URLs you want to be parsed                                                                        | "https://m3u_URL1.com, https://m3u_URL2.com" | n/a                                 |
 | BYPASS_HEADER | true/false                                          | Bypass checking url header for content-type and content-disposition.                                          | False                                        | False                               |
 | HOURS         | numeric value                                       | Number representing the interval you want to update from m3u urls                                             | 12                                           | 8                                   |
+| RUN_ONCE      | true/false                                          | If true, runs once and exits (for Kubernetes jobs). If false, runs continuously with periodic restarts.      | true                                         | false                               |
 | SCRUB_HEADER  | any text, in quotes, and seperated with a comma ,   | Removes value and preceding text from begining of group-title line                                            | "HD :"                                       | "HD :, SD :"                        |
 | EXCLUDE_TERMS | any text, in quotes, and seperated with a comma ,   | Excludes content that contains defined term if found in the group-title                                       | "AR -, FR -"                                 | ""                                  |
 | REMOVE_TERMS  | any text, in quotes, and seperated with a comma ,   | Removes value(s) set from file and directory names                                                            | "x264, 720p"                                 | "720p, WEB, h264, H264, HDTV, x264" |

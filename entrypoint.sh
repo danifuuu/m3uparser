@@ -22,12 +22,23 @@ echo "Setting ownership and permissions..."
 chown -R "$PUID:$PGID" /usr/src/app
 chmod +x /usr/src/app/parser/parser_script.py
 
+# Check if running as Kubernetes job
+if [ "${KUBERNETES_JOB:-false}" = "true" ] || [ "${RUN_ONCE:-false}" = "true" ]; then
+    echo "Running as Kubernetes job (RUN_ONCE mode)..."
+    RUN_ONCE_MODE=true
+else
+    echo "Running as continuous container..."
+    RUN_ONCE_MODE=false
+fi
+
 # Switch to the m3uuser and run parser_script.py
 echo "Switching to user 'm3uuser' and running parser_script..."
-su -s /bin/bash -c "exec python3 /usr/src/app/parser/parser_script.py" m3uuser
+su -s /bin/bash -c "RUN_ONCE=$RUN_ONCE_MODE exec python3 /usr/src/app/parser/parser_script.py" m3uuser
 
+# Capture exit code
+EXIT_CODE=$?
 
 # Exit the entrypoint script
 echo "Entrypoint script execution completed."
-exit 0
+exit $EXIT_CODE
 

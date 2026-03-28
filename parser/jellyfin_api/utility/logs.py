@@ -8,7 +8,6 @@ def upload_log(main_client, file_path, jellyfin_url, rerun):
 
     try:
         print("Uploading logs...")
-        print(f"Re-run set for {rerun} hours.")
         with open(file_path, 'r', encoding='utf-8') as file:
             log_var = file.read().replace('\\n', '\n')
     except Exception as e:

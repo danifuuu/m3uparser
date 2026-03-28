@@ -118,7 +118,6 @@ def api_upload_log(file_path, api_key, jellyfin_url, rerun):
 
     try:
         print("Uploading logs...")
-        print(f"Re-run set for {rerun} hours.")
         response = apikey_ezpztv.jellyfin.send_request(
             jellyfin_url,
             "ClientLog/Document",

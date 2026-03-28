@@ -7,6 +7,7 @@ COPY . .
 ENV PYTHONPATH=/usr/src/app
 # Environment variables
 ENV HOURS=8
+ENV RUN_ONCE=false
 ENV M3U_URL=
 ENV SCRUB_HEADER=
 ENV REMOVE_TERMS=
