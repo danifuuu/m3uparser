@@ -3,9 +3,8 @@ FROM golang:1.23-alpine AS builder
 
 WORKDIR /build
 
-# Cache dependency downloads.
-COPY go.mod go.sum ./
-RUN go mod download
+# Cache dependency downloads (no external deps, but keeps layer caching correct).
+COPY go.mod ./
 
 # Build static binary.
 COPY . .
