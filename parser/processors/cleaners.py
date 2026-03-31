@@ -156,8 +156,9 @@ def process_value(value, replace=None, remove_header=None, remove_terms=None):
     if remove_header:
         for header_term in remove_header:
             # print("\nProcessing header term from header value:", header_term)
-            pattern = re.compile(r'.*?{}\s*'.format(re.escape(header_term)), flags=re.IGNORECASE)
-            match = pattern.search(value)
+            # Match from the beginning: anything (minimal), then the header term, then any combination of spaces and commas
+            pattern = re.compile(r'^(.*?)' + re.escape(header_term) + r'[\s,]*', flags=re.IGNORECASE)
+            match = pattern.match(value)
             if match:
                 value = value[match.end():].strip()
                 # print("Value after {} removal:".format(header_term), value)

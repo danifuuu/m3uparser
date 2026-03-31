@@ -95,11 +95,16 @@ Key=Value pairs are made from each item in the EXTINF line. The values are then 
 The `group-title` value often contains more information than just the TV show or Movie name. The `SCRUB_HEADER` values work by matching the first instance of the given values in the `group-title` string, and removing the values and anything that precedes it. The goal is to use a common string found amongst the `group-title` values.
 
 Example: `SCRUB_HEADER="HD :, SD :"`. This removes these values,`HD :` and `SD :`, if they exist, and any preceding text from the `group-title` line. So a line like this, `group-title="Movie VOD",HD : The Fall Guy 2024` will become `group-title= The Fall Guy 2024`. Ensure spaces are included where needed. Add multiple values to `SCRUB_HEADER=`, separated by commas, in a single set of quotes.
-Note that any quotes that exist in the `group-title` are stripped before the `SCRUB_HEADER` is applied, so they do not need to be included in the SCRUB_HEADER value.
+Note that any quotes that exist in the `group-title` are stripped before the `SCRUB_HEADER` is applied, so they do not need to be included in the SCRUB_HEADER value. Any trailing commas after the matched header term are automatically removed.
+
+**HANDLING COMMAS IN HEADERS**
+
+The `SCRUB_HEADER` now properly handles trailing commas and spaces. For example, if your `group-title` looks like `DRAMA-SUSPENSE,A través de mi ventana`, setting `SCRUB_HEADER="DRAMA-SUSPENSE"` will cleanly remove the header and the trailing comma, resulting in `A través de mi ventana`. You can also include commas within your scrub values. For instance, `SCRUB_HEADER="DRAMA-SUSPENSE,"` will match and remove both the text and the comma.
 
 **ESCAPING SPECIAL CHARACTERS**
 
 You can escape characters like `,` by using a `\` So if your `group-title` looks like this `group-title="Movie VOD",The Fall Guy 2024`, your SCRUB_HEADER value should look like this `SCRUB_HEADER="\,"` So this finds the first instance of a `,` and then removes it and anything that precedes it.
+
 
 Default is set to: `SCRUB_HEADER="HD :, SD :"`
 
