@@ -14,9 +14,10 @@ func ProcessValue(value string, replace map[string]string, removeHeader []string
 		value = pattern.ReplaceAllString(value, replacement)
 	}
 
-	// Remove header prefixes: everything up to and including the header term.
+	// Remove header prefixes: match from the beginning of the string,
+	// strip everything up to and including the header term plus trailing spaces/commas.
 	for _, header := range removeHeader {
-		pattern := regexp.MustCompile(`(?i).*?` + regexp.QuoteMeta(header) + `\s*`)
+		pattern := regexp.MustCompile(`(?i)^.*?` + regexp.QuoteMeta(header) + `[\s,]*`)
 		if loc := pattern.FindStringIndex(value); loc != nil {
 			value = strings.TrimSpace(value[loc[1]:])
 		}

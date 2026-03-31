@@ -110,7 +110,7 @@ func writeTV(e *entry.Entry, tvDir string) (string, error) {
 
 func writeMovie(e *entry.Entry, moviesDir string) (string, error) {
 	movieTitle := sanitizePath(e.MovieTitle)
-	movieDate := e.MovieDate
+	movieDate := strings.Trim(e.MovieDate, "()")
 	dirName := fmt.Sprintf("%s (%s)", movieTitle, movieDate)
 	dir := filepath.Join(moviesDir, dirName)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -345,7 +345,6 @@ func sanitizePath(s string) string {
 	replacer := strings.NewReplacer(
 		"/", "-",
 		"\\", "-",
-		":", "-",
 		"*", "",
 		"?", "",
 		"\"", "",

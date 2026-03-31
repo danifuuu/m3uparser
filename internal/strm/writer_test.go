@@ -213,7 +213,7 @@ func TestSanitizePath(t *testing.T) {
 		expected string
 	}{
 		{"Hello/World", "Hello-World"},
-		{"File: Name", "File- Name"},
+		{"File: Name", "File: Name"},
 		{`Star*War?s`, "StarWars"},
 		{"Normal Name", "Normal Name"},
 		{"  spaces  ", "spaces"},
