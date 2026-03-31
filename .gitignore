@@ -1,5 +1,14 @@
+# Python (legacy)
 **/__pycache__
 **/*.pyc
 **/*.pyo
+
+# Environment files
 **/*.env
 !m3uparser/m3uparser.env
+
+# Go
+/m3uparser
+*.exe
+*.test
+*.out
