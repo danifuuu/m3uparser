@@ -11,7 +11,9 @@ import (
 // so we use FindStringIndex and substring extraction instead.
 var (
 	// Season/episode: S01E02, 1x02, S01 E02
-	reSeasonEpisode = regexp.MustCompile(`(?i)\b[sS]\d{1,3}[eE]\d{1,3}\b|\b\d{1,3}[xX]\d{1,3}\b|\b[sS]\d{1,3}\s[eE]\d{1,3}\b`)
+	// Episode numbers allow up to 5 digits to accommodate Xtream Codes internal IDs
+	// (e.g. "S8 E8072") which can exceed 3 digits.
+	reSeasonEpisode = regexp.MustCompile(`(?i)\b[sS]\d{1,3}[eE]\d{1,5}\b|\b\d{1,3}[xX]\d{1,3}\b|\b[sS]\d{1,3}\s[eE]\d{1,5}\b`)
 
 	// Air date: "2024 01 15" or "15 01 2024" style
 	reAirDate = regexp.MustCompile(`\b(?:(?:19|20)\d{2}\s\d{2}\s\d{2}|\d{2}\s\d{2}\s(?:19|20)\d{2})\b`)
@@ -27,16 +29,16 @@ var (
 	reURLLive   = regexp.MustCompile(`/live/`)
 
 	// Extract season/episode from SxxExx format
-	reSeasonFromSE  = regexp.MustCompile(`(?i)[sS](\d{1,3})[eE]\d{1,3}`)
-	reEpisodeFromSE = regexp.MustCompile(`(?i)[sS]\d{1,3}[eE](\d{1,3})`)
+	reSeasonFromSE  = regexp.MustCompile(`(?i)[sS](\d{1,3})[eE]\d{1,5}`)
+	reEpisodeFromSE = regexp.MustCompile(`(?i)[sS]\d{1,3}[eE](\d{1,5})`)
 
 	// Extract season/episode from NxN format
 	reSeasonFromX  = regexp.MustCompile(`(?i)(\d{1,3})[xX]\d{1,3}`)
 	reEpisodeFromX = regexp.MustCompile(`(?i)\d{1,3}[xX](\d{1,3})`)
 
 	// Extract season/episode from "S01 E02" format
-	reSeasonFromSpaced  = regexp.MustCompile(`(?i)[sS](\d{1,3})\s[eE]\d{1,3}`)
-	reEpisodeFromSpaced = regexp.MustCompile(`(?i)[sS]\d{1,3}\s[eE](\d{1,3})`)
+	reSeasonFromSpaced  = regexp.MustCompile(`(?i)[sS](\d{1,3})\s[eE]\d{1,5}`)
+	reEpisodeFromSpaced = regexp.MustCompile(`(?i)[sS]\d{1,3}\s[eE](\d{1,5})`)
 )
 
 // CleanerFlags controls which entry categories have term removal applied.
@@ -96,8 +98,18 @@ func findLastMovieYear(value string) (match string, startIdx int) {
 
 // ClassifyAndClean populates the entry's type, parsed metadata, and cleaned group-title.
 // It applies the same logic as the Python clean_group_title function.
+//
+// Classification is performed against TvgName (the clean display title) rather than
+// GroupTitle (which contains a "GENRE,Title" prefix from Xtream Codes playlists).
+// This prevents the genre prefix from leaking into ShowTitle/MovieTitle path components.
 func ClassifyAndClean(e *Entry, removeTerms, removeDefaults []string, cleaners CleanerFlags) {
-	value := e.GroupTitle
+	// Use TvgName as the classification source when available — it contains only the
+	// clean display title (e.g. "Shin Chan S1 E1") without the genre prefix that
+	// GroupTitle carries (e.g. "Shin_Chan,Shin Chan S1 E1").
+	value := e.TvgName
+	if value == "" {
+		value = e.GroupTitle
+	}
 
 	defer func() {
 		if r := recover(); r != nil {

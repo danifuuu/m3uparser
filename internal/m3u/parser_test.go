@@ -60,9 +60,9 @@ func TestParseFile(t *testing.T) {
 	content := `#EXTM3U
 #EXTINF:-1 tvg-id="cnn.us" tvg-name="CNN" group-title="News",CNN HD
 http://example.com/live/cnn
-#EXTINF:0 tvg-id="" tvg-name="Breaking Bad" group-title="Breaking Bad S01E01 Pilot",Breaking Bad S01E01
+#EXTINF:0 tvg-id="" tvg-name="Breaking Bad S01E01" group-title="Breaking Bad",Breaking Bad S01E01
 http://example.com/vod/bb-s01e01
-#EXTINF:0 tvg-id="" tvg-name="The Matrix" group-title="The Matrix 1999",The Matrix
+#EXTINF:0 tvg-id="" tvg-name="The Matrix (1999)" group-title="Movies",The Matrix (1999)
 http://example.com/vod/matrix
 `
 
