@@ -73,6 +73,39 @@ func TestWriteMovieEntry(t *testing.T) {
 	}
 }
 
+func TestWriteMovieEntryWithoutYear(t *testing.T) {
+	tmpDir := t.TempDir()
+	moviesDir := filepath.Join(tmpDir, "Movie_VOD")
+
+	entries := []*entry.Entry{
+		{
+			EntryType:  entry.TypeMovie,
+			MovieTitle: "Hannah Montana: Especial 20 aniversario",
+			MovieDate:  "",
+			StreamURL:  "http://example.com/hannah",
+		},
+	}
+
+	stats, errors := WriteAll(entries, tmpDir, moviesDir, tmpDir)
+
+	if len(errors) > 0 {
+		t.Fatalf("unexpected errors: %v", errors)
+	}
+	if stats.Movies != 1 {
+		t.Errorf("expected 1 movie entry, got %d", stats.Movies)
+	}
+
+	// Should NOT have empty parens — just "Title/Title.strm"
+	expected := filepath.Join(moviesDir, "Hannah Montana: Especial 20 aniversario", "Hannah Montana: Especial 20 aniversario.strm")
+	data, err := os.ReadFile(expected)
+	if err != nil {
+		t.Fatalf("expected file %s to exist: %v", expected, err)
+	}
+	if string(data) != "http://example.com/hannah" {
+		t.Errorf("unexpected file content: %q", string(data))
+	}
+}
+
 func TestWriteLiveTVPlaylist(t *testing.T) {
 	tmpDir := t.TempDir()
 	liveTVFile := filepath.Join(tmpDir, "livetv.m3u")

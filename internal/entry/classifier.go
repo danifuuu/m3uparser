@@ -20,6 +20,12 @@ var (
 	// Parenthesized years are matched first so they include the parens.
 	reMovieYear = regexp.MustCompile(`(?:\((?:19[3-9]\d|20\d{2})\)|\b(?:19\d{2}|20\d{2})\b)`)
 
+	// URL path patterns for Xtream Codes API-style IPTV services.
+	// These match /movie/, /series/, or /live/ anywhere in the URL path.
+	reURLMovie  = regexp.MustCompile(`/movie/`)
+	reURLSeries = regexp.MustCompile(`/series/`)
+	reURLLive   = regexp.MustCompile(`/live/`)
+
 	// Extract season/episode from SxxExx format
 	reSeasonFromSE  = regexp.MustCompile(`(?i)[sS](\d{1,3})[eE]\d{1,3}`)
 	reEpisodeFromSE = regexp.MustCompile(`(?i)[sS]\d{1,3}[eE](\d{1,3})`)
@@ -173,13 +179,38 @@ func ClassifyAndClean(e *Entry, removeTerms, removeDefaults []string, cleaners C
 		}
 	}
 
-	// 4. Live TV: unclassified with duration == -1
+	// 4. URL-based classification fallback: Xtream Codes API URLs contain
+	// /movie/, /series/, or /live/ path segments. This catches entries that
+	// lack title-based classification signals (e.g., movies without years).
+	if e.EntryType == TypeUnknown && e.StreamURL != "" {
+		if reURLMovie.MatchString(e.StreamURL) {
+			movieTitle := strings.TrimSpace(value)
+			if movieTitle == "" {
+				movieTitle = strings.TrimSpace(e.GroupTitle)
+			}
+			if cleaners.Movies {
+				movieTitle = RemoveAllTerms(movieTitle, removeTerms, removeDefaults)
+			}
+			e.MovieTitle = movieTitle
+			e.EntryType = TypeMovie
+			value = ""
+		} else if reURLSeries.MatchString(e.StreamURL) {
+			// Series URL but no season/episode in title — classify as unsorted
+			// under the show title so it doesn't get lost.
+			e.EntryType = TypeUnsorted
+		} else if reURLLive.MatchString(e.StreamURL) {
+			e.EntryType = TypeLiveTV
+			ensureTvgID(e)
+		}
+	}
+
+	// 5. Live TV: unclassified with duration == -1 and no URL hint
 	if e.EntryType == TypeUnknown && e.Duration == "-1" {
 		e.EntryType = TypeLiveTV
 		ensureTvgID(e)
 	}
 
-	// 5. Unsorted: everything else
+	// 6. Unsorted: everything else
 	if e.EntryType == TypeUnknown {
 		e.EntryType = TypeUnsorted
 	}

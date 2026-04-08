@@ -111,13 +111,22 @@ func writeTV(e *entry.Entry, tvDir string) (string, error) {
 func writeMovie(e *entry.Entry, moviesDir string) (string, error) {
 	movieTitle := sanitizePath(e.MovieTitle)
 	movieDate := strings.Trim(e.MovieDate, "()")
-	dirName := fmt.Sprintf("%s (%s)", movieTitle, movieDate)
+
+	// When there's no year (e.g., URL-classified movies), omit the parens entirely.
+	var dirName, filename string
+	if movieDate != "" {
+		dirName = fmt.Sprintf("%s (%s)", movieTitle, movieDate)
+		filename = fmt.Sprintf("%s (%s).strm", movieTitle, movieDate)
+	} else {
+		dirName = movieTitle
+		filename = fmt.Sprintf("%s.strm", movieTitle)
+	}
+
 	dir := filepath.Join(moviesDir, dirName)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("mkdir %s: %w", dir, err)
 	}
 
-	filename := fmt.Sprintf("%s (%s).strm", movieTitle, movieDate)
 	path := filepath.Join(dir, sanitizePath(filename))
 	return path, writeFile(path, e.StreamURL)
 }

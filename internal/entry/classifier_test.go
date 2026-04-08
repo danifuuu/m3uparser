@@ -177,3 +177,110 @@ func TestClassifyTVShowWithAirDate(t *testing.T) {
 		t.Errorf("expected ShowTitle 'The Tonight Show', got %q", e.ShowTitle)
 	}
 }
+
+func TestClassifyMovieByURL(t *testing.T) {
+	// Movie without a year in the title, but URL contains /movie/
+	e := &Entry{
+		GroupTitle: "Hannah Montana: Especial 20 aniversario",
+		Duration:   "-1",
+		StreamURL:  "https://example.com/movie/user/pass/7c32cec4.mkv",
+	}
+
+	ClassifyAndClean(e, nil, nil, CleanerFlags{})
+
+	if e.EntryType != TypeMovie {
+		t.Errorf("expected TypeMovie, got %s", e.EntryType)
+	}
+	if e.MovieTitle != "Hannah Montana: Especial 20 aniversario" {
+		t.Errorf("expected MovieTitle 'Hannah Montana: Especial 20 aniversario', got %q", e.MovieTitle)
+	}
+	if e.MovieDate != "" {
+		t.Errorf("expected empty MovieDate, got %q", e.MovieDate)
+	}
+}
+
+func TestClassifyMovieByURLWithCleaners(t *testing.T) {
+	// Movie URL without year, with remove terms applied
+	e := &Entry{
+		GroupTitle: "Peaky Blinders: El hombre inmortal 720p",
+		Duration:   "-1",
+		StreamURL:  "https://example.com/movie/user/pass/6543649c.mkv",
+	}
+
+	ClassifyAndClean(e, []string{"720p"}, nil, CleanerFlags{Movies: true})
+
+	if e.EntryType != TypeMovie {
+		t.Errorf("expected TypeMovie, got %s", e.EntryType)
+	}
+	if e.MovieTitle != "Peaky Blinders: El hombre inmortal" {
+		t.Errorf("expected MovieTitle 'Peaky Blinders: El hombre inmortal', got %q", e.MovieTitle)
+	}
+}
+
+func TestClassifySeriesByURL(t *testing.T) {
+	// Series URL but no season/episode in title → falls to unsorted
+	e := &Entry{
+		GroupTitle: "Some Series Name",
+		Duration:   "-1",
+		StreamURL:  "https://example.com/series/user/pass/12345.ts",
+	}
+
+	ClassifyAndClean(e, nil, nil, CleanerFlags{})
+
+	if e.EntryType != TypeUnsorted {
+		t.Errorf("expected TypeUnsorted for series URL without season/episode, got %s", e.EntryType)
+	}
+}
+
+func TestClassifyLiveByURL(t *testing.T) {
+	// Live URL without duration=-1
+	e := &Entry{
+		GroupTitle: "CNN HD",
+		Duration:   "0",
+		StreamURL:  "https://example.com/live/user/pass/456.ts",
+		TvgName:    "CNN HD",
+	}
+
+	ClassifyAndClean(e, nil, nil, CleanerFlags{})
+
+	if e.EntryType != TypeLiveTV {
+		t.Errorf("expected TypeLiveTV, got %s", e.EntryType)
+	}
+}
+
+func TestClassifyMovieWithYearStillUsesTitle(t *testing.T) {
+	// Movie with year in title — title-based classification should win
+	// even if URL also contains /movie/
+	e := &Entry{
+		GroupTitle: "Inception (2010)",
+		Duration:   "-1",
+		StreamURL:  "https://example.com/movie/user/pass/abc123.mkv",
+	}
+
+	ClassifyAndClean(e, nil, nil, CleanerFlags{})
+
+	if e.EntryType != TypeMovie {
+		t.Errorf("expected TypeMovie, got %s", e.EntryType)
+	}
+	if e.MovieDate != "(2010)" {
+		t.Errorf("expected MovieDate '(2010)', got %q", e.MovieDate)
+	}
+	if e.MovieTitle != "Inception" {
+		t.Errorf("expected MovieTitle 'Inception', got %q", e.MovieTitle)
+	}
+}
+
+func TestClassifyLiveTVDurationFallback(t *testing.T) {
+	// Non-Xtream URL with duration=-1 should still classify as LiveTV
+	e := &Entry{
+		GroupTitle: "Some Channel",
+		Duration:   "-1",
+		StreamURL:  "http://example.com/stream/channel123",
+	}
+
+	ClassifyAndClean(e, nil, nil, CleanerFlags{})
+
+	if e.EntryType != TypeLiveTV {
+		t.Errorf("expected TypeLiveTV for duration=-1 fallback, got %s", e.EntryType)
+	}
+}
