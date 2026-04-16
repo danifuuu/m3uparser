@@ -13,6 +13,7 @@ import (
 	"github.com/dani/m3uparser/internal/entry"
 	"github.com/dani/m3uparser/internal/jellyfin"
 	"github.com/dani/m3uparser/internal/m3u"
+	"github.com/dani/m3uparser/internal/notify"
 	"github.com/dani/m3uparser/internal/strm"
 	"github.com/dani/m3uparser/internal/threadfin"
 )
@@ -99,11 +100,17 @@ func run() error {
 	}
 
 	// Step 7: Sync to local directories.
+	// A DiffCollector is wired in when TELEGRAM_WEBHOOK_URL is set; otherwise nil (no-op).
 	slog.Info("syncing directories")
-	syncDir(paths.MoviesDir, paths.LocalMovDir, cfg.CleanSync)
-	syncDir(paths.TVDir, paths.LocalTVDir, cfg.CleanSync)
+	var diff *notify.DiffCollector
+	if cfg.TelegramWebhookURL != "" {
+		diff = &notify.DiffCollector{}
+	}
+
+	syncDir(paths.MoviesDir, paths.LocalMovDir, cfg.CleanSync, diff, "movie")
+	syncDir(paths.TVDir, paths.LocalTVDir, cfg.CleanSync, diff, "tv")
 	if cfg.Unsorted {
-		syncDir(paths.UnsortedDir, paths.LocalUnsorted, cfg.CleanSync)
+		syncDir(paths.UnsortedDir, paths.LocalUnsorted, cfg.CleanSync, diff, "unsorted")
 	}
 	if cfg.LiveTV {
 		if err := strm.MoveFile(paths.LiveTVFile, paths.LiveTVDir); err != nil {
@@ -135,13 +142,13 @@ func run() error {
 	cleanup(cfg, paths)
 
 	// Step 10: Post-processing integrations.
-	runIntegrations(cfg, stats)
+	runIntegrations(cfg, stats, diff, len(result.Errors))
 
 	return nil
 }
 
-func syncDir(src, dest string, removeExtra bool) {
-	if err := strm.SyncDirectories(src, dest, removeExtra); err != nil {
+func syncDir(src, dest string, removeExtra bool, diff *notify.DiffCollector, mediaType string) {
+	if err := strm.SyncDirectories(src, dest, removeExtra, diff, mediaType); err != nil {
 		slog.Error("directory sync failed", "src", src, "dest", dest, "error", err)
 	}
 }
@@ -164,7 +171,7 @@ func cleanup(cfg *config.Config, paths config.Paths) {
 	strm.Cleanup(cp)
 }
 
-func runIntegrations(cfg *config.Config, stats *strm.Stats) {
+func runIntegrations(cfg *config.Config, stats *strm.Stats, diff *notify.DiffCollector, errorCount int) {
 	_ = stats // available for future use
 
 	// Jellyfin: refresh library and/or guide.
@@ -191,6 +198,20 @@ func runIntegrations(cfg *config.Config, stats *strm.Stats) {
 		slog.Info("running threadfin integration")
 		if err := tf.RunFullUpdate(); err != nil {
 			slog.Error("threadfin update failed", "error", err)
+		}
+	}
+
+	// Telegram: send media diff notification.
+	if cfg.TelegramWebhookURL != "" {
+		payload := diff.Build(errorCount)
+		nc := notify.New(cfg.TelegramWebhookURL, cfg.TelegramWebhookSecret)
+		if err := nc.Send(payload); err != nil {
+			slog.Error("telegram notification failed", "error", err)
+		} else {
+			slog.Info("telegram notification sent",
+				"added", len(payload.Added),
+				"removed", len(payload.Removed),
+			)
 		}
 	}
 }

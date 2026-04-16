@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/dani/m3uparser/internal/entry"
+	"github.com/dani/m3uparser/internal/notify"
 )
 
 // Stats tracks counts of created .strm files.
@@ -175,7 +176,9 @@ func WriteLiveTVPlaylist(entries []*entry.Entry, liveTVFile string) (int, error)
 }
 
 // SyncDirectories copies files from src to dest, optionally removing dest items not in src.
-func SyncDirectories(src, dest string, removeExtra bool) error {
+// diff is optional: when non-nil, every added or removed .strm file is recorded on it
+// under mediaType (e.g. "movie", "tv", "unsorted").
+func SyncDirectories(src, dest string, removeExtra bool, diff *notify.DiffCollector, mediaType string) error {
 	srcEntries, err := os.ReadDir(src)
 	if err != nil {
 		return fmt.Errorf("read src dir %s: %w", src, err)
@@ -190,14 +193,20 @@ func SyncDirectories(src, dest string, removeExtra bool) error {
 		destPath := filepath.Join(dest, de.Name())
 
 		if de.IsDir() {
-			if err := SyncDirectories(srcPath, destPath, removeExtra); err != nil {
+			// Pass diff and mediaType down into subdirectory recursion.
+			if err := SyncDirectories(srcPath, destPath, removeExtra, diff, mediaType); err != nil {
 				return err
 			}
 			continue
 		}
 
+		existed := fileExists(destPath)
 		if err := copyFileIfChanged(srcPath, destPath); err != nil {
 			return err
+		}
+		// Record as added only if the file did not exist before (not an update).
+		if !existed && strings.HasSuffix(de.Name(), ".strm") {
+			diff.RecordAdded(destPath, mediaType)
 		}
 	}
 
@@ -226,12 +235,22 @@ func SyncDirectories(src, dest string, removeExtra bool) error {
 				slog.Warn("failed to remove extra dir", "path", p, "error", err)
 			} else {
 				slog.Info("removed extra directory", "path", p)
+				// Walk the removed directory to record every .strm it contained.
+				filepath.WalkDir(p, func(wp string, wd os.DirEntry, _ error) error {
+					if !wd.IsDir() && strings.HasSuffix(wd.Name(), ".strm") {
+						diff.RecordRemoved(wp, mediaType)
+					}
+					return nil
+				})
 			}
 		} else {
 			if err := os.Remove(p); err != nil {
 				slog.Warn("failed to remove extra file", "path", p, "error", err)
 			} else {
 				slog.Info("removed extra file", "path", p)
+				if strings.HasSuffix(de.Name(), ".strm") {
+					diff.RecordRemoved(p, mediaType)
+				}
 			}
 		}
 	}
@@ -312,6 +331,11 @@ type CleanupPaths struct {
 
 func writeFile(path, content string) error {
 	return os.WriteFile(path, []byte(content), 0o644)
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func copyFileIfChanged(src, dest string) error {

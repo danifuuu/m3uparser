@@ -52,6 +52,9 @@ type Config struct {
 
 	// Logging level (INFO, DEBUG, WARN, ERROR).
 	LogLevel string
+
+	TelegramWebhookURL    string
+	TelegramWebhookSecret string
 }
 
 // Load reads environment variables and returns a validated Config.
@@ -87,6 +90,9 @@ func Load() (*Config, error) {
 		EPGURLs: splitCSV(os.Getenv("EPG_URL")),
 
 		LogLevel: envOrDefault("LOG_LEVEL", "INFO"),
+
+		TelegramWebhookURL:    os.Getenv("TELEGRAM_WEBHOOK_URL"),
+		TelegramWebhookSecret: os.Getenv("TELEGRAM_WEBHOOK_SECRET"),
 	}
 
 	if len(cfg.M3UURLs) == 0 {
