@@ -205,7 +205,7 @@ func SyncDirectories(src, dest string, removeExtra bool, diff *notify.DiffCollec
 			return err
 		}
 		// Record as added only if the file did not exist before (not an update).
-		if !existed && strings.HasSuffix(de.Name(), ".strm") {
+		if !existed && strings.HasSuffix(de.Name(), ".strm") && diff != nil {
 			diff.RecordAdded(destPath, mediaType)
 		}
 	}
@@ -237,7 +237,7 @@ func SyncDirectories(src, dest string, removeExtra bool, diff *notify.DiffCollec
 				slog.Info("removed extra directory", "path", p)
 				// Walk the removed directory to record every .strm it contained.
 				filepath.WalkDir(p, func(wp string, wd os.DirEntry, _ error) error {
-					if !wd.IsDir() && strings.HasSuffix(wd.Name(), ".strm") {
+					if !wd.IsDir() && strings.HasSuffix(wd.Name(), ".strm") && diff != nil {
 						diff.RecordRemoved(wp, mediaType)
 					}
 					return nil
@@ -248,8 +248,8 @@ func SyncDirectories(src, dest string, removeExtra bool, diff *notify.DiffCollec
 				slog.Warn("failed to remove extra file", "path", p, "error", err)
 			} else {
 				slog.Info("removed extra file", "path", p)
-				if strings.HasSuffix(de.Name(), ".strm") {
-					diff.RecordRemoved(p, mediaType)
+			if strings.HasSuffix(de.Name(), ".strm") && diff != nil {
+				diff.RecordRemoved(p, mediaType)
 				}
 			}
 		}

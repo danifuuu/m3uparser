@@ -186,7 +186,7 @@ func TestSyncDirectories(t *testing.T) {
 	os.WriteFile(filepath.Join(src, "a.strm"), []byte("url1"), 0o644)
 	os.WriteFile(filepath.Join(src, "subdir", "b.strm"), []byte("url2"), 0o644)
 
-	if err := SyncDirectories(src, dest, false); err != nil {
+	if err := SyncDirectories(src, dest, false, nil, ""); err != nil {
 		t.Fatalf("SyncDirectories failed: %v", err)
 	}
 
@@ -210,7 +210,7 @@ func TestSyncDirectoriesWithRemoval(t *testing.T) {
 	os.WriteFile(filepath.Join(dest, "keep.strm"), []byte("url"), 0o644)
 	os.WriteFile(filepath.Join(dest, "remove.strm"), []byte("old"), 0o644)
 
-	if err := SyncDirectories(src, dest, true); err != nil {
+	if err := SyncDirectories(src, dest, true, nil, ""); err != nil {
 		t.Fatalf("SyncDirectories failed: %v", err)
 	}
 

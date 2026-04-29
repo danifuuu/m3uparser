@@ -25,11 +25,12 @@ func (d *DiffCollector) RecordRemoved(path, mediaType string) {
 }
 
 // Build returns the accumulated Payload.
-func (d *DiffCollector) Build(errors int) Payload {
+func (d *DiffCollector) Build(errors int, dlErrors []DownloadError) Payload {
 	return Payload{
-		Added:   d.added,
-		Removed: d.removed,
-		Errors:  errors,
+		Added:          d.added,
+		Removed:        d.removed,
+		Errors:         errors,
+		DownloadErrors: dlErrors,
 	}
 }
 

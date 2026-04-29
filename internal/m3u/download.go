@@ -13,19 +13,32 @@ import (
 
 const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
 
+// DownloadError records a failed download attempt for a single URL.
+type DownloadError struct {
+	URL string
+	Err error
+}
+
+func (d DownloadError) Error() string {
+	return fmt.Sprintf("url %s: %v", d.URL, d.Err)
+}
+
 // Download fetches all M3U URLs into the m3uDir.
 // If bypassHeader is true it skips the HEAD check and downloads directly.
-func Download(urls []string, m3uDir string, bypassHeader bool) error {
+// It always attempts every URL; any per-URL failures are returned as []DownloadError
+// so callers can notify downstream systems while still continuing with the rest.
+func Download(urls []string, m3uDir string, bypassHeader bool) ([]DownloadError, error) {
 	client := &http.Client{}
 
+	var dlErrors []DownloadError
 	for _, u := range urls {
 		if err := downloadOne(client, u, m3uDir, bypassHeader); err != nil {
 			slog.Error("failed to download M3U", "url", u, "error", err)
-			// Continue with remaining URLs instead of failing entirely.
+			dlErrors = append(dlErrors, DownloadError{URL: u, Err: err})
 		}
 	}
 
-	return nil
+	return dlErrors, nil
 }
 
 func downloadOne(client *http.Client, url, m3uDir string, bypassHeader bool) error {

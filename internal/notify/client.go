@@ -16,11 +16,18 @@ type MediaItem struct {
 	Type  string `json:"type"` // "movie" | "tv" | "unsorted"
 }
 
+// DownloadError describes a single failed M3U download.
+type DownloadError struct {
+	URL   string `json:"url"`
+	Error string `json:"error"`
+}
+
 // Payload is the JSON body POSTed to the Telegram bot webhook.
 type Payload struct {
-	Added   []MediaItem `json:"added"`
-	Removed []MediaItem `json:"removed"`
-	Errors  int         `json:"errors"`
+	Added          []MediaItem     `json:"added"`
+	Removed        []MediaItem     `json:"removed"`
+	Errors         int             `json:"errors"`
+	DownloadErrors []DownloadError `json:"download_errors,omitempty"`
 }
 
 // Client posts notifications to the bot webhook.

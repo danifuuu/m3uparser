@@ -48,7 +48,8 @@ func run() error {
 
 	// Step 2: Download M3U files.
 	slog.Info("downloading M3U files", "urls", len(cfg.M3UURLs))
-	if err := m3u.Download(cfg.M3UURLs, paths.M3UDir, cfg.BypassHeader); err != nil {
+	dlErrors, err := m3u.Download(cfg.M3UURLs, paths.M3UDir, cfg.BypassHeader)
+	if err != nil {
 		return err
 	}
 
@@ -57,6 +58,10 @@ func run() error {
 	if err := m3u.CombineFiles(paths.M3UDir, paths.M3UFilePath); err != nil {
 		slog.Error("M3U combine failed, cleaning up", "error", err)
 		cleanup(cfg, paths)
+		// If we have download errors and Telegram is configured, notify before exiting.
+		if len(dlErrors) > 0 && cfg.TelegramWebhookURL != "" {
+			notifyDownloadErrors(cfg, dlErrors)
+		}
 		return err
 	}
 
@@ -142,7 +147,7 @@ func run() error {
 	cleanup(cfg, paths)
 
 	// Step 10: Post-processing integrations.
-	runIntegrations(cfg, stats, diff, len(result.Errors))
+	runIntegrations(cfg, stats, diff, len(result.Errors), dlErrors)
 
 	return nil
 }
@@ -171,7 +176,7 @@ func cleanup(cfg *config.Config, paths config.Paths) {
 	strm.Cleanup(cp)
 }
 
-func runIntegrations(cfg *config.Config, stats *strm.Stats, diff *notify.DiffCollector, errorCount int) {
+func runIntegrations(cfg *config.Config, stats *strm.Stats, diff *notify.DiffCollector, errorCount int, dlErrors []m3u.DownloadError) {
 	_ = stats // available for future use
 
 	// Jellyfin: refresh library and/or guide.
@@ -203,7 +208,14 @@ func runIntegrations(cfg *config.Config, stats *strm.Stats, diff *notify.DiffCol
 
 	// Telegram: send media diff notification.
 	if cfg.TelegramWebhookURL != "" {
-		payload := diff.Build(errorCount)
+		var notifyDLErrors []notify.DownloadError
+		for _, e := range dlErrors {
+			notifyDLErrors = append(notifyDLErrors, notify.DownloadError{
+				URL:   e.URL,
+				Error: e.Err.Error(),
+			})
+		}
+		payload := diff.Build(errorCount, notifyDLErrors)
 		nc := notify.New(cfg.TelegramWebhookURL, cfg.TelegramWebhookSecret)
 		if err := nc.Send(payload); err != nil {
 			slog.Error("telegram notification failed", "error", err)
@@ -233,4 +245,25 @@ func setupLogging(level string) {
 		Level: logLevel,
 	})
 	slog.SetDefault(slog.New(handler))
+}
+
+// notifyDownloadErrors sends a Telegram notification containing only download errors.
+// Used when the pipeline aborts early (e.g. all downloads failed) before runIntegrations is reached.
+func notifyDownloadErrors(cfg *config.Config, dlErrors []m3u.DownloadError) {
+	var notifyDLErrors []notify.DownloadError
+	for _, e := range dlErrors {
+		notifyDLErrors = append(notifyDLErrors, notify.DownloadError{
+			URL:   e.URL,
+			Error: e.Err.Error(),
+		})
+	}
+	payload := notify.Payload{
+		DownloadErrors: notifyDLErrors,
+	}
+	nc := notify.New(cfg.TelegramWebhookURL, cfg.TelegramWebhookSecret)
+	if err := nc.Send(payload); err != nil {
+		slog.Error("telegram notification failed", "error", err)
+	} else {
+		slog.Info("telegram download-error notification sent", "count", len(dlErrors))
+	}
 }
