@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/dani/m3uparser/internal/entry"
+	"github.com/dani/m3uparser/internal/notify"
 )
 
 func TestWriteSeriesEntry(t *testing.T) {
@@ -222,6 +223,37 @@ func TestSyncDirectoriesWithRemoval(t *testing.T) {
 	// remove.strm should be gone.
 	if _, err := os.Stat(filepath.Join(dest, "remove.strm")); !os.IsNotExist(err) {
 		t.Error("expected remove.strm to be removed")
+	}
+}
+
+// Regression test: removing an extra directory used to walk the path after
+// deleting it. filepath.WalkDir then called back with a nil DirEntry and the
+// callback panicked, failing every CronJob run that had stale media.
+func TestSyncDirectoriesRemovesDirectoryAndRecordsDiff(t *testing.T) {
+	tmpDir := t.TempDir()
+	src := filepath.Join(tmpDir, "src")
+	dest := filepath.Join(tmpDir, "dest")
+
+	os.MkdirAll(src, 0o755)
+	os.MkdirAll(filepath.Join(dest, "stale"), 0o755)
+	os.WriteFile(filepath.Join(src, "keep.strm"), []byte("url"), 0o644)
+	os.WriteFile(filepath.Join(dest, "stale", "gone.strm"), []byte("old"), 0o644)
+
+	diff := &notify.DiffCollector{}
+	if err := SyncDirectories(src, dest, true, diff, "movie"); err != nil {
+		t.Fatalf("SyncDirectories failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dest, "stale")); !os.IsNotExist(err) {
+		t.Error("expected stale directory to be removed")
+	}
+
+	removed := diff.Build(0, nil).Removed
+	if len(removed) != 1 {
+		t.Fatalf("expected 1 removed item, got %d: %#v", len(removed), removed)
+	}
+	if removed[0].Title != "gone" || removed[0].Type != "movie" {
+		t.Errorf("unexpected removed item: %#v", removed[0])
 	}
 }
 

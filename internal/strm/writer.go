@@ -231,25 +231,33 @@ func SyncDirectories(src, dest string, removeExtra bool, diff *notify.DiffCollec
 		}
 		p := filepath.Join(dest, de.Name())
 		if de.IsDir() {
-			if err := os.RemoveAll(p); err != nil {
-				slog.Warn("failed to remove extra dir", "path", p, "error", err)
-			} else {
-				slog.Info("removed extra directory", "path", p)
-				// Walk the removed directory to record every .strm it contained.
-				filepath.WalkDir(p, func(wp string, wd os.DirEntry, _ error) error {
-					if !wd.IsDir() && strings.HasSuffix(wd.Name(), ".strm") && diff != nil {
+			// Record the .strm files before deleting the directory. Walking
+			// the path after RemoveAll makes filepath.WalkDir call back with
+			// a nil DirEntry (the root no longer exists), which used to panic
+			// on wd.IsDir() and fail the whole job.
+			if diff != nil {
+				_ = filepath.WalkDir(p, func(wp string, wd os.DirEntry, err error) error {
+					if err != nil || wd == nil {
+						return nil
+					}
+					if !wd.IsDir() && strings.HasSuffix(wd.Name(), ".strm") {
 						diff.RecordRemoved(wp, mediaType)
 					}
 					return nil
 				})
+			}
+			if err := os.RemoveAll(p); err != nil {
+				slog.Warn("failed to remove extra dir", "path", p, "error", err)
+			} else {
+				slog.Info("removed extra directory", "path", p)
 			}
 		} else {
 			if err := os.Remove(p); err != nil {
 				slog.Warn("failed to remove extra file", "path", p, "error", err)
 			} else {
 				slog.Info("removed extra file", "path", p)
-			if strings.HasSuffix(de.Name(), ".strm") && diff != nil {
-				diff.RecordRemoved(p, mediaType)
+				if strings.HasSuffix(de.Name(), ".strm") && diff != nil {
+					diff.RecordRemoved(p, mediaType)
 				}
 			}
 		}
